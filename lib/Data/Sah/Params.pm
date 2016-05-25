@@ -11,18 +11,99 @@ use Exporter qw(import);
 our @EXPORT_OK = qw(compile Slurpy Optional Named);
 
 sub Optional($) {
-    bless [$_[0]], "Data::Sah::Params::_Optional";
+    bless [$_[0]], "_Optional";
 }
 
 sub Slurpy($) {
-    bless [$_[0]], "Data::Sah::Params::_Slurpy";
+    bless [$_[0]], "_Slurpy";
 }
 
 sub Named {
-    bless [$_[0]], "Data::Sah::Params::_Named";
+    @_ or die "Need at least one pair for Named";
+    @_ % 2 == 0 or die "Odd number of elements for Named";
+    bless {@_}, "_Named";
 }
 
 sub compile {
+    die "Please specify some params" unless @_;
+
+    # we currently use Perinci::Sub::ValidateArgs to generate the validator, so
+    # we create rinci metadata from params specification.
+    my $meta = {v=>1.1, args=>{}, result_naked=>1};
+    if (ref($_[0]) eq '_Named') {
+        die "Cannot mixed Named and other params" unless @_ == 1;
+        $meta->{args_as} = 'hashref';
+        for my $arg_name (keys %{$_[0]}) {
+            my $arg_schema = $_[0]{$arg_name};
+            my $req = 1;
+            while (1) {
+                my $ref = ref($arg_schema);
+                if ($ref eq '_Optional') {
+                    $req = 0;
+                    $arg_schema = $arg_schema->[0];
+                    next;
+                }
+                if ($ref eq '_Slurpy') {
+                    # noop
+                    $arg_schema = $arg_schema->[0];
+                    next;
+                }
+                last;
+            }
+            $meta->{args}{$arg_name} = {
+                schema => $arg_schema,
+                req => $req,
+            };
+        }
+    } else {
+        $meta->{args_as} = 'arrayref';
+        for my $pos (0..$#_) {
+            my $arg_name = "arg$pos";
+            my $arg_schema = $_[$pos];
+            my $req = 1;
+            my $slurpy;
+            while (1) {
+                my $ref = ref($arg_schema);
+                if ($ref eq '_Named') {
+                    die "Cannot mixed Named and other params";
+                }
+                if ($ref eq '_Optional') {
+                    $req = 0;
+                    $arg_schema = $arg_schema->[0];
+                    next;
+                }
+                if ($ref eq '_Slurpy') {
+                    die "Slurpy parameter must be the last parameter"
+                        unless $pos == $#_;
+                    $slurpy = 1;
+                    $arg_schema = $arg_schema->[0];
+                    next;
+                }
+                last;
+            }
+            $meta->{args}{$arg_name} = {
+                schema => $arg_schema,
+                req => $req,
+                pos => $pos,
+                (greedy => $slurpy) x !!$slurpy,
+            };
+        }
+    }
+
+    require Perinci::Sub::ValidateArgs;
+    my $code = Perinci::Sub::ValidateArgs::gen_args_validator(
+        meta=>$meta, source=>1, die=>1);
+
+    # do some munging
+    if ($meta->{args_as} eq 'hashref') {
+        $code =~ s/^(\s*my \$args = )shift;/${1}[\@_];/m
+            or die "BUG: Can't replace #1";
+        $code =~ s/(\A.+^\s*return )undef;/${1}\@\$args;/ms
+            or die "BUG: Can't replace #2";
+    }
+
+    $code;
+;
 }
 
 1;
@@ -91,5 +172,6 @@ L<Sah> for the schema language.
 
 Similar modules: L<Type::Params>, L<Params::Validate>, L<Params::CheckCompiler>.
 
-If you put your schemas in L<Rinci> function metadata (I recommend it), take a
-look at L<Perinci::Sub::ValidateArgs>.
+If you put your schemas in L<Rinci> function metadata (I recommend it, for the
+convenience of specifying other stuffs besides argument schemas), take a look at
+L<Perinci::Sub::ValidateArgs>.
