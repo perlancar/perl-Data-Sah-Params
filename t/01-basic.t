@@ -4,146 +4,47 @@ use 5.010001;
 use strict;
 use warnings;
 
-use Function::Fallback::CoreOrPP qw(clone);
-use Perinci::Sub::ValidateArgs qw(gen_args_validator);
+use Data::Sah::Params qw(compile Optional Named Slurpy);
 use Test::Exception;
 use Test::More 0.98;
 
-our %SPEC;
-
-$SPEC{foo} = {
-    v => 1.1,
-    args => {
-        a1 => {
-            schema => 'int*',
-            req => 1,
-            pos => 0,
-        },
-        a2 => {
-            schema => [array => of=>'int*'],
-            default => [1],
-            pos => 1,
-            greedy => 1,
-        },
-    },
-};
-sub foo {
-    state $validator = gen_args_validator();
-    my %args = @_;
-    if (my $err = $validator->(\%args)) { return $err }
-    [200, "OK"];
-}
-
-$SPEC{foo_result_naked} = do {
-    my $meta = clone $SPEC{foo};
-    $meta->{result_naked} = 1;
-    $meta;
-};
-sub foo_result_naked {
-    state $validator = gen_args_validator();
-    my %args = @_;
-    if (my $err = $validator->(\%args)) { return $err }
-    "OK";
-}
-
-$SPEC{foo_die} = $SPEC{foo};
-sub foo_die {
-    state $validator = gen_args_validator(die => 1);
-    my %args = @_;
-    $validator->(\%args);
-    [200, "OK"];
-}
-
-$SPEC{foo_args_as_hashref} = do {
-    my $meta = clone $SPEC{foo};
-    $meta->{args_as} = 'hashref';
-    $meta;
-};
-sub foo_args_as_hashref {
-    state $validator = gen_args_validator();
-    my $args = shift;
-    if (my $err = $validator->($args)) { return $err }
-    [200, "OK"];
-}
-
-$SPEC{foo_args_as_array} = do {
-    my $meta = clone $SPEC{foo};
-    $meta->{args_as} = 'array';
-    $meta;
-};
-sub foo_args_as_array {
-    state $validator = gen_args_validator();
-    my @args = @_;
-    if (my $err = $validator->(\@args)) { return $err }
-    [200, "OK"];
-}
-
-$SPEC{foo_args_as_arrayref} = do {
-    my $meta = clone $SPEC{foo};
-    $meta->{args_as} = 'arrayref';
-    $meta;
-};
-sub foo_args_as_arrayref {
-    state $validator = gen_args_validator();
-    my $args = shift;
-    if (my $err = $validator->($args)) { return $err }
-    [200, "OK"];
-}
-
-subtest "basics" => sub {
-    is_deeply(foo(),
-              [400, "Missing required argument 'a1'"]);
-    is_deeply(foo(bar=>undef),
-              [400, "Unknown argument 'bar'"]);
-    is_deeply(foo(a1=>1),
-              [200, "OK"]);
-    is_deeply(foo(a1=>"x"),
-              [400, "Validation failed for argument 'a1': Not of type integer"]);
-    is_deeply(foo(a1=>2, a2=>"x"),
-              [400, "Validation failed for argument 'a2': Not of type array"]);
-    is_deeply(foo(a1=>2, a2=>["x"]),
-              [400, "Validation failed for argument 'a2': \@[0]: Not of type integer"]);
-    is_deeply(foo(a1=>2, a2=>[]),
-              [200, "OK"]);
+subtest "positional" => sub {
+    my $v = compile("int*", ["array", of=>"int*"]);
+    dies_ok { $v->() } "missing required param 1";
+    dies_ok { $v->(1) } "missing required param 2";
+    dies_ok { $v->(undef, []) } "param 1 cannot be undef";
+    lives_ok { $v->(1, undef) } "param 2 can be undef";
+    dies_ok { $v->("x", undef) } "failed validation for param 1";
+    dies_ok { $v->(1, "x") } "failed validation for param 2";
+    dies_ok { $v->(1, [1,"x"]) } "failed validation for param 2 #2";
+    dies_ok { $v->(1, [], undef) } "too many params";
 };
 
-subtest "opt:source=1" => sub {
-    my $res = gen_args_validator(meta=>{v=>1.1}, source=>1);
-    like($res, qr/sub/);
+subtest "Optional" => sub {
+    my $v = compile("int*", Optional "int*");
+    lives_ok { $v->(1) } "optional param can be unspecified";
+    lives_ok { $v->(1, 2) };
+    dies_ok { $v->(1, undef) } "validation of optional param still performed";
 };
 
-subtest "meta:result_naked=1" => sub {
-    is_deeply(foo_result_naked(), "Missing required argument 'a1'");
-    is_deeply(foo_result_naked(a1=>2), "OK");
+subtest "Slurpy" => sub {
+    my $v = compile("int*", Slurpy ["array", of=>"int*"]);
+    lives_ok { $v->(1) };
+    lives_ok { $v->(1, 2,3,4) };
+    dies_ok { $v->(1, 2,3,"x") };
 };
 
-subtest "meta:args_as=hashref" => sub {
-    is_deeply(foo_args_as_hashref({}), [400, "Missing required argument 'a1'"]);
-    is_deeply(foo_args_as_hashref({a1=>2}), [200, "OK"]);
-};
-
-subtest "meta:args_as=array" => sub {
-    is_deeply(foo_args_as_array(), [400, "Missing required argument 'a1'"]);
-    is_deeply(foo_args_as_array(2), [200, "OK"]);
-    is_deeply(foo_args_as_array("x"), [400, "Validation failed for argument 'a1': Not of type integer"]);
-    is_deeply(foo_args_as_array(2, 1), [200, "OK"]);
-    is_deeply(foo_args_as_array(2, 1,2), [200, "OK"]);
-    is_deeply(foo_args_as_array(2, 1,"x"), [400, "Validation failed for argument 'a2': \@[1]: Not of type integer"]);
-};
-
-subtest "meta:args_as=arrayref" => sub {
-    is_deeply(foo_args_as_arrayref([]), [400, "Missing required argument 'a1'"]);
-    is_deeply(foo_args_as_arrayref([2]), [200, "OK"]);
-    is_deeply(foo_args_as_arrayref(["x"]), [400, "Validation failed for argument 'a1': Not of type integer"]);
-    is_deeply(foo_args_as_arrayref([2, 1]), [200, "OK"]);
-    is_deeply(foo_args_as_arrayref([2, 1,2]), [200, "OK"]);
-    is_deeply(foo_args_as_arrayref([2, 1,"x"]), [400, "Validation failed for argument 'a2': \@[1]: Not of type integer"]);
-};
-
-subtest "opt:die=1" => sub {
-    dies_ok  { foo_die() };
-    dies_ok  { foo_die(a1=>"x") };
-    lives_ok { foo_die(a1=>2) };
+subtest "Named" => sub {
+    dies_ok { compile("int*", Named(a=>"int*")) } "cannot be mixed #1";
+    dies_ok { compile(Named(a=>"int*"), "int*") } "cannot be mixed #2";
+    dies_ok { compile(Named()) } "empty pairs not allowed";
+    dies_ok { compile(Named("a")) } "odd elements in pairs not allowed";
+    my $v = compile(Named a=>"int*", b=>"int", c=>Optional "int");
+    lives_ok { $v->(a=>1, b=>undef) };
+    lives_ok { $v->(a=>1, b=>undef, c=>undef) };
+    dies_ok { $v->(a=>1) };
+    dies_ok { $v->(b=>1) };
+    dies_ok { $v->(a=>1, b=>1, c=>"x") };
 };
 
 done_testing;

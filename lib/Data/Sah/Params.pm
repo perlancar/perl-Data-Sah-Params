@@ -32,7 +32,7 @@ sub compile {
     my $meta = {v=>1.1, args=>{}, result_naked=>1};
     if (ref($_[0]) eq '_Named') {
         die "Cannot mixed Named and other params" unless @_ == 1;
-        $meta->{args_as} = 'hashref';
+        $meta->{args_as} = 'hash';
         for my $arg_name (keys %{$_[0]}) {
             my $arg_schema = $_[0]{$arg_name};
             my $req = 1;
@@ -56,7 +56,7 @@ sub compile {
             };
         }
     } else {
-        $meta->{args_as} = 'arrayref';
+        $meta->{args_as} = 'array';
         for my $pos (0..$#_) {
             my $arg_name = "arg$pos";
             my $arg_schema = $_[$pos];
@@ -95,15 +95,22 @@ sub compile {
         meta=>$meta, source=>1, die=>1);
 
     # do some munging
-    if ($meta->{args_as} eq 'hashref') {
+    if ($meta->{args_as} eq 'hash') {
+        $code =~ s/^(\s*my \$args = )shift;/${1}{\@_};/m
+            or die "BUG: Can't replace #1a";
+        $code =~ s/(\A.+^\s*return )undef;/${1}\$args;/ms
+            or die "BUG: Can't replace #2a";
+    } else {
         $code =~ s/^(\s*my \$args = )shift;/${1}[\@_];/m
-            or die "BUG: Can't replace #1";
+            or die "BUG: Can't replace #1b";
         $code =~ s/(\A.+^\s*return )undef;/${1}\@\$args;/ms
-            or die "BUG: Can't replace #2";
+            or die "BUG: Can't replace #2b";
     }
+    #say "D:", $code;
 
-    $code;
-;
+    my $sub = eval $code;
+    die if $@;
+    $sub;
 }
 
 1;
