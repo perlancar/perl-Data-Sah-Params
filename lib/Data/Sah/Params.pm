@@ -109,6 +109,7 @@ sub compile {
     #say "D:", $code;
 
     my $sub = eval $code;
+    #use Eval::Closure; my $sub = eval_closure(source => $code);
     die if $@;
     $sub;
 }
