@@ -116,6 +116,8 @@ sub compile {
 1;
 # ABSTRACT: Validate function arguments using Sah schemas
 
+=for Pod::Coverage ^(Optional|Slurpy|Named)$
+
 =head1 SYNOPSIS
 
  use Data::Sah::Params qw(compile Optional Slurpy Named);
@@ -171,6 +173,16 @@ sub compile {
 Experimental.
 
 Currently mixing positional and named parameters not yet supported.
+
+
+=head1 FUNCTIONS
+
+=head2 compile($schema, ...) => coderef
+
+Create a validator. Accepts a list of schemas. Each schema can be prefixed with
+C<Optional> or C<Slurpy>. Or, if your function will accept named arguments
+(C<%args>) you can use: C<< Named(PARAM1=>$schema1, PARAM2=>$schema2, ...) >>
+instead.
 
 
 =head1 SEE ALSO
