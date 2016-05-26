@@ -47,4 +47,8 @@ subtest "Named" => sub {
     dies_ok { $v->(a=>1, b=>1, c=>"x") };
 };
 
+subtest "opt:want_source=1" => sub {
+    like(compile({want_source=>1}, "int*"), qr/sub/);
+};
+
 done_testing;

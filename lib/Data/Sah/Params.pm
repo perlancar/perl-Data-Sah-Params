@@ -25,6 +25,7 @@ sub Named {
 }
 
 sub compile {
+    my $opts = ref($_[0]) eq 'HASH' ? shift : {};
     die "Please specify some params" unless @_;
 
     # we currently use Perinci::Sub::ValidateArgs to generate the validator, so
@@ -91,27 +92,27 @@ sub compile {
     }
 
     require Perinci::Sub::ValidateArgs;
-    my $code = Perinci::Sub::ValidateArgs::gen_args_validator(
+    my $src = Perinci::Sub::ValidateArgs::gen_args_validator(
         meta=>$meta, source=>1, die=>1);
 
     # do some munging
     if ($meta->{args_as} eq 'hash') {
-        $code =~ s/^(\s*my \$args = )shift;/${1}{\@_};/m
+        $src =~ s/^(\s*my \$args = )shift;/${1}{\@_};/m
             or die "BUG: Can't replace #1a";
-        $code =~ s/(\A.+^\s*return )undef;/${1}\$args;/ms
+        $src =~ s/(\A.+^\s*return )undef;/${1}\$args;/ms
             or die "BUG: Can't replace #2a";
     } else {
-        $code =~ s/^(\s*my \$args = )shift;/${1}[\@_];/m
+        $src =~ s/^(\s*my \$args = )shift;/${1}[\@_];/m
             or die "BUG: Can't replace #1b";
-        $code =~ s/(\A.+^\s*return )undef;/${1}\@\$args;/ms
+        $src =~ s/(\A.+^\s*return )undef;/${1}\@\$args;/ms
             or die "BUG: Can't replace #2b";
     }
-    #say "D:", $code;
+    return $src if $opts->{want_source};
 
-    my $sub = eval $code;
-    #use Eval::Closure; my $sub = eval_closure(source => $code);
+    my $code = eval $src;
+    #use Eval::Closure; my $code = eval_closure(source => $src);
     die if $@;
-    $sub;
+    $code;
 }
 
 1;
