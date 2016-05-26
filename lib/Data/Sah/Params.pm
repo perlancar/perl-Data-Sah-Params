@@ -179,12 +179,23 @@ Currently mixing positional and named parameters not yet supported.
 
 =head1 FUNCTIONS
 
-=head2 compile($schema, ...) => coderef
+=head2 compile([ \%opts, ] $schema, ...) => coderef
 
 Create a validator. Accepts a list of schemas. Each schema can be prefixed with
 C<Optional> or C<Slurpy>. Or, if your function will accept named arguments
 (C<%args>) you can use: C<< Named(PARAM1=>$schema1, PARAM2=>$schema2, ...) >>
 instead.
+
+Known options:
+
+=over
+
+=item * want_source => bool
+
+If set to 1, will return validator source code string instead of compiled code
+(coderef). Useful for debugging.
+
+=back
 
 
 =head1 SEE ALSO
