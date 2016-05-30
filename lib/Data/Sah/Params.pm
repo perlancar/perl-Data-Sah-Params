@@ -207,3 +207,7 @@ Similar modules: L<Type::Params>, L<Params::Validate>, L<Params::CheckCompiler>.
 If you put your schemas in L<Rinci> function metadata (I recommend it, for the
 convenience of specifying other stuffs besides argument schemas), take a look at
 L<Perinci::Sub::ValidateArgs>.
+
+L<Params::Sah>. I've actually implemented something similar the year before
+(albeit with a slightly different interface), before absent-mindedly
+reimplemented later :-) We'll see which one will thrive.
