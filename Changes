@@ -1,3 +1,8 @@
+0.004   2020-07-21  Released-By: PERLANCAR; Urgency: medium
+
+	- Deprecate in favor of Params::Sah.
+
+
 0.003   2016-05-30  Released-By: PERLANCAR
 
 	- No functional changes.
