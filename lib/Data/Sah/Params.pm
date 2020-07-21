@@ -172,7 +172,7 @@ sub compile {
 
 =head1 DESCRIPTION
 
-Experimental.
+Experimental. Deprecated in favor of L<Params::Sah>.
 
 Currently mixing positional and named parameters not yet supported.
 
@@ -199,6 +199,8 @@ If set to 1, will return validator source code string instead of compiled code
 
 
 =head1 SEE ALSO
+
+L<Params::Sah> is now the preferred module over this.
 
 L<Sah> for the schema language.
 
