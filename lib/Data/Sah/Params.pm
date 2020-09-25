@@ -1,6 +1,8 @@
 package Data::Sah::Params;
 
+# AUTHORITY
 # DATE
+# DIST
 # VERSION
 
 use 5.010001;
@@ -116,7 +118,7 @@ sub compile {
 }
 
 1;
-# ABSTRACT: Validate function arguments using Sah schemas
+# ABSTRACT: (DEPRECATED) Validate function arguments using Sah schemas
 
 =for Pod::Coverage ^(Optional|Slurpy|Named)$
 
@@ -172,7 +174,9 @@ sub compile {
 
 =head1 DESCRIPTION
 
-Experimental. Deprecated in favor of L<Params::Sah>.
+B<DEPRECATION NOTICE.> Deprecated in favor of L<Params::Sah>.
+
+Experimental.
 
 Currently mixing positional and named parameters not yet supported.
 
